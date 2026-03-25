@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     database_url: str
+    # PostgreSQL schema for v1 event stack (batches, events, subtypes, detail tables).
+    events_schema: str = "stoxscoop"
 
 
 settings = Settings()

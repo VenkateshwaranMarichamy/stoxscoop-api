@@ -1,0 +1,194 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.wrap{padding:12px 0;font-family:var(--font-sans)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.tab{font-size:11px;font-weight:500;padding:5px 12px;border-radius:20px;border:1px solid var(--color-border-tertiary);cursor:pointer;color:var(--color-text-secondary);background:var(--color-background-secondary);transition:all .15s;white-space:nowrap}
+.tab.active{background:#534AB7;color:#fff;border-color:#534AB7}
+.panel{display:none}.panel.active{display:block}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px}
+th{text-align:left;padding:5px 10px;color:var(--color-text-secondary);font-weight:500;border-bottom:1px solid var(--color-border-tertiary);font-size:11px}
+td{padding:6px 10px;border-bottom:1px solid var(--color-border-tertiary);color:var(--color-text-primary);vertical-align:top}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--color-background-secondary)}
+.mono{font-family:var(--font-mono);font-size:11px;color:var(--color-text-secondary)}
+.req{font-size:10px;padding:1px 5px;border-radius:3px;font-weight:500;background:#FCEBEB;color:#791F1F}
+.opt{font-size:10px;padding:1px 5px;border-radius:3px;font-weight:500;background:#F1EFE8;color:#444441}
+.auto{font-size:10px;padding:1px 5px;border-radius:3px;font-weight:500;background:#EAF3DE;color:#27500A}
+.note{font-size:11px;color:var(--color-text-secondary)}
+.section-head{font-size:12px;font-weight:500;color:var(--color-text-secondary);margin:14px 0 6px;padding-bottom:5px;border-bottom:1px solid var(--color-border-tertiary)}
+.info{font-size:11px;color:var(--color-text-secondary);background:var(--color-background-secondary);border-left:3px solid #534AB7;padding:8px 12px;border-radius:0 6px 6px 0;margin-bottom:12px}
+@media(prefers-color-scheme:dark){
+  .req{background:#791F1F;color:#F7C1C1}
+  .opt{background:#444441;color:#D3D1C7}
+  .auto{background:#27500A;color:#C0DD97}
+}
+</style>
+<div class="wrap">
+<div class="tabs">
+  <div class="tab active" onclick="show('batch')">event_batches</div>
+  <div class="tab" onclick="show('event')">events</div>
+  <div class="tab" onclick="show('mapping')">Subtype → detail table map</div>
+</div>
+
+<div id="batch" class="panel active">
+  <div class="info">POST /api/v1/batches — create a batch before submitting events manually. Returns batch_id to use in subsequent event inserts.</div>
+  <div class="section-head">Fields to accept via API</div>
+  <table>
+    <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">batch_name</td><td class="mono">string</td><td><span class="req">required</span></td><td class="note">e.g. "HDFC Bank events - Mar 2026". Meaningful name for the session</td></tr>
+      <tr><td class="mono">notes</td><td class="mono">string</td><td><span class="opt">optional</span></td><td class="note">Freetext — source article, operator notes, context</td></tr>
+    </tbody>
+  </table>
+  <div class="section-head">Fields set automatically by backend — never from API input</div>
+  <table>
+    <thead><tr><th>Field</th><th>Auto value</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">id</td><td class="mono">serial</td><td class="note">Auto-increment PK</td></tr>
+      <tr><td class="mono">ingestion_source</td><td class="mono">'manual'</td><td class="note">Hardcoded for Phase 1 — no RSS/API yet</td></tr>
+      <tr><td class="mono">total_events</td><td class="mono">0</td><td class="note">Incremented by backend each time an event is added to this batch</td></tr>
+      <tr><td class="mono">started_at</td><td class="mono">NOW()</td><td class="note">Set on batch creation</td></tr>
+      <tr><td class="mono">completed_at</td><td class="mono">NULL → NOW()</td><td class="note">Set when frontend calls PATCH /batches/{id}/complete</td></tr>
+      <tr><td class="mono">created_at</td><td class="mono">NOW()</td><td class="note"></td></tr>
+      <tr><td class="mono">updated_at</td><td class="mono">NOW()</td><td class="note">Updated on any change</td></tr>
+    </tbody>
+  </table>
+  <div class="section-head">Additional endpoints needed</div>
+  <table>
+    <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">POST</td><td class="mono">/api/v1/batches</td><td class="note">Create new batch, return batch_id</td></tr>
+      <tr><td class="mono">GET</td><td class="mono">/api/v1/batches</td><td class="note">List all batches with total_events count</td></tr>
+      <tr><td class="mono">GET</td><td class="mono">/api/v1/batches/{id}</td><td class="note">Get single batch + its events</td></tr>
+      <tr><td class="mono">PATCH</td><td class="mono">/api/v1/batches/{id}/complete</td><td class="note">Sets completed_at = NOW()</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div id="event" class="panel">
+  <div class="info">POST /api/v1/events — single event insert. batch_id is optional (NULL for individual events). Backend writes events row first, then routes detail fields to the correct detail table based on event_type.</div>
+  <div class="section-head">Fields to accept via API — core event</div>
+  <table>
+    <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">stock_id</td><td class="mono">integer</td><td><span class="req">required</span></td><td class="note">FK → classification.ticker_symbol</td></tr>
+      <tr><td class="mono">batch_id</td><td class="mono">integer</td><td><span class="opt">optional</span></td><td class="note">NULL for individual event, batch_id for grouped entry</td></tr>
+      <tr><td class="mono">event_type</td><td class="mono">event_type_enum</td><td><span class="req">required</span></td><td class="note">Drives which detail table is written. Frontend should load subtypes after this is selected</td></tr>
+      <tr><td class="mono">event_subtype</td><td class="mono">string</td><td><span class="req">required</span></td><td class="note">Must be valid for the given event_type — backend validates against event_subtypes table</td></tr>
+      <tr><td class="mono">event_date</td><td class="mono">date</td><td><span class="req">required</span></td><td class="note">Date the event occurred or was reported</td></tr>
+      <tr><td class="mono">title</td><td class="mono">string</td><td><span class="req">required</span></td><td class="note">Short headline, max 500 chars</td></tr>
+      <tr><td class="mono">summary</td><td class="mono">string</td><td><span class="opt">optional</span></td><td class="note">Longer context or extracted text from news</td></tr>
+      <tr><td class="mono">signal_type</td><td class="mono">signal_type_enum</td><td><span class="opt">optional</span></td><td class="note">If not provided, backend seeds from event_subtypes.default_signal</td></tr>
+      <tr><td class="mono">signal_reason</td><td class="mono">string</td><td><span class="opt">optional</span></td><td class="note">Operator's note on why this signal was assigned</td></tr>
+      <tr><td class="mono">sentiment</td><td class="mono">sentiment_enum</td><td><span class="opt">optional</span></td><td class="note">Default 'neutral'</td></tr>
+      <tr><td class="mono">priority</td><td class="mono">priority_enum</td><td><span class="opt">optional</span></td><td class="note">Default 'low'</td></tr>
+      <tr><td class="mono">impact_score</td><td class="mono">integer 1–100</td><td><span class="opt">optional</span></td><td class="note">Operator-assigned importance score</td></tr>
+      <tr><td class="mono">source_url</td><td class="mono">string</td><td><span class="opt">optional</span></td><td class="note">URL of the news article</td></tr>
+      <tr><td class="mono">source_name</td><td class="mono">string</td><td><span class="opt">optional</span></td><td class="note">Publisher — ET, Moneycontrol, BSE, etc.</td></tr>
+      <tr><td class="mono">tags</td><td class="mono">string[]</td><td><span class="opt">optional</span></td><td class="note">Additional manual tags. Trigger auto-appends system tags on top</td></tr>
+      <tr><td class="mono">detail</td><td class="mono">object</td><td><span class="opt">optional</span></td><td class="note">Nested object with detail table fields — see subtype map tab</td></tr>
+    </tbody>
+  </table>
+  <div class="section-head">Fields set automatically — never from API input</div>
+  <table>
+    <thead><tr><th>Field</th><th>Auto value</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">id</td><td class="mono">serial</td><td class="note"></td></tr>
+      <tr><td class="mono">ingestion_source</td><td class="mono">'manual'</td><td class="note">Hardcoded Phase 1</td></tr>
+      <tr><td class="mono">confidence_score</td><td class="mono">NULL</td><td class="note">No AI in Phase 1</td></tr>
+      <tr><td class="mono">confidence_model_version</td><td class="mono">NULL</td><td class="note">No AI in Phase 1</td></tr>
+      <tr><td class="mono">is_verified</td><td class="mono">TRUE</td><td class="note">Manual entry = already verified by operator</td></tr>
+      <tr><td class="mono">is_active</td><td class="mono">TRUE</td><td class="note"></td></tr>
+      <tr><td class="mono">created_at</td><td class="mono">NOW()</td><td class="note"></td></tr>
+      <tr><td class="mono">updated_at</td><td class="mono">NOW()</td><td class="note"></td></tr>
+    </tbody>
+  </table>
+  <div class="section-head">Additional endpoints</div>
+  <table>
+    <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">POST</td><td class="mono">/api/v1/events</td><td class="note">Create event + detail row in one transaction</td></tr>
+      <tr><td class="mono">GET</td><td class="mono">/api/v1/events</td><td class="note">List events — query: stock_id, event_type, event_subtype, date_from, date_to (event_date range, inclusive), priority (low|medium|high), active_only, limit, offset</td></tr>
+      <tr><td class="mono">GET</td><td class="mono">/api/v1/events/{id}</td><td class="note">Get single event with its detail object</td></tr>
+      <tr><td class="mono">PATCH</td><td class="mono">/api/v1/events/{id}</td><td class="note">Update event fields + detail fields</td></tr>
+      <tr><td class="mono">DELETE</td><td class="mono">/api/v1/events/{id}</td><td class="note">Soft delete — sets is_active = FALSE</td></tr>
+      <tr><td class="mono">GET</td><td class="mono">/api/v1/subtypes?event_type=</td><td class="note">Returns valid subtypes for a given event_type (for frontend dropdown)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div id="mapping" class="panel">
+  <div class="info">When event_type is selected, frontend loads subtypes. When subtype is selected, frontend renders only the relevant detail fields. Backend routes the detail{} object to the correct table. Fields marked optional can be hidden until the operator expands "more details".</div>
+  <div class="section-head">event_type → detail table → fields to show per subtype</div>
+  <table>
+    <thead><tr><th>event_type / subtype</th><th>Detail table</th><th>Key fields to show in frontend form</th></tr></thead>
+    <tbody>
+      <tr style="background:var(--color-background-secondary)"><td colspan="3" style="font-weight:500;font-size:11px;color:#185FA5;padding:7px 10px">CORPORATE ACTIONS → corporate_action_details</td></tr>
+      <tr><td class="mono">dividend</td><td class="mono" rowspan="8" style="vertical-align:middle;color:var(--color-text-tertiary)">corporate_action_details</td><td class="note">amount_per_share <span class="req">req</span>, record_date, effective_date, currency</td></tr>
+      <tr><td class="mono">bonus</td><td class="note">ratio <span class="req">req</span> (e.g. 1:2), effective_date</td></tr>
+      <tr><td class="mono">split</td><td class="note">ratio <span class="req">req</span> (e.g. 1:5), effective_date, record_date</td></tr>
+      <tr><td class="mono">rights_issue</td><td class="note">ratio, amount_per_share, record_date, total_size</td></tr>
+      <tr><td class="mono">buyback</td><td class="note">offer_price <span class="req">req</span>, total_size <span class="req">req</span>, effective_date</td></tr>
+      <tr><td class="mono">merger</td><td class="note">target_company <span class="req">req</span>, swap_ratio, total_size, description</td></tr>
+      <tr><td class="mono">demerger</td><td class="note">target_company <span class="req">req</span>, effective_date, description</td></tr>
+      <tr><td class="mono">open_offer</td><td class="note">offer_price <span class="req">req</span>, total_size, effective_date</td></tr>
+
+      <tr style="background:var(--color-background-secondary)"><td colspan="3" style="font-weight:500;font-size:11px;color:#0F6E56;padding:7px 10px">DISCLOSURES → disclosure_details</td></tr>
+      <tr><td class="mono">bulk_deal / block_deal</td><td class="mono" rowspan="5" style="vertical-align:middle;color:var(--color-text-tertiary)">disclosure_details</td><td class="note">investor_category <span class="req">req</span>, investor_name <span class="req">req</span>, transaction_type <span class="req">req</span>, transaction_mode <span class="req">req</span>, shares_transacted, price_per_share, transaction_value, exchange</td></tr>
+      <tr><td class="mono">fii_buy / fii_sell</td><td class="note">investor_name <span class="req">req</span>, investor_country, stake_before, stake_after, transaction_value</td></tr>
+      <tr><td class="mono">dii_buy / dii_sell</td><td class="note">investor_name <span class="req">req</span>, stake_before, stake_after, transaction_value</td></tr>
+      <tr><td class="mono">superinvestor_buy/sell</td><td class="note">investor_name <span class="req">req</span>, stake_before, stake_after, shares_transacted, price_per_share</td></tr>
+      <tr><td class="mono">shareholding_change / mutual_fund_change</td><td class="note">investor_name, investor_category <span class="req">req</span>, stake_before, stake_after</td></tr>
+
+      <tr style="background:var(--color-background-secondary)"><td colspan="3" style="font-weight:500;font-size:11px;color:#534AB7;padding:7px 10px">INSIDER ACTIVITY → insider_details</td></tr>
+      <tr><td class="mono">insider_buy / insider_sell</td><td class="mono" rowspan="4" style="vertical-align:middle;color:var(--color-text-tertiary)">insider_details</td><td class="note">person_name <span class="req">req</span>, designation, relationship, transaction_type <span class="req">req</span>, shares_transacted, price_per_share, stake_before, stake_after, transaction_date, sebi_disclosure_date</td></tr>
+      <tr><td class="mono">pledge / pledge_release</td><td class="note">person_name <span class="req">req</span>, relationship, pledge_percentage <span class="req">req</span>, transaction_date</td></tr>
+      <tr><td class="mono">acquisition / creeping_acquisition</td><td class="note">person_name <span class="req">req</span>, relationship, shares_transacted, price_per_share, stake_before, stake_after</td></tr>
+      <tr><td class="mono">esop_exercise</td><td class="note">person_name <span class="req">req</span>, designation, shares_transacted, price_per_share, transaction_date</td></tr>
+
+      <tr style="background:var(--color-background-secondary)"><td colspan="3" style="font-weight:500;font-size:11px;color:#854F0B;padding:7px 10px">BUSINESS EVENTS → business_event_details</td></tr>
+      <tr><td class="mono">contract / order_win</td><td class="mono" rowspan="5" style="vertical-align:middle;color:var(--color-text-tertiary)">business_event_details</td><td class="note">contract_type <span class="req">req</span>, client_name <span class="req">req</span>, client_sector, contract_value, duration_years, geography, is_repeat_order, description</td></tr>
+      <tr><td class="mono">capex</td><td class="note">capex_amount <span class="req">req</span>, project_name, geography, expected_completion, description</td></tr>
+      <tr><td class="mono">jv_partnership</td><td class="note">jv_partner <span class="req">req</span>, ownership_pct, contract_value, geography, description</td></tr>
+      <tr><td class="mono">expansion / plant_commissioning / new_product</td><td class="note">project_name <span class="req">req</span>, geography, capex_amount, expected_completion, description</td></tr>
+      <tr><td class="mono">divestiture</td><td class="note">client_name (buyer), contract_value <span class="req">req</span>, description</td></tr>
+
+      <tr style="background:var(--color-background-secondary)"><td colspan="3" style="font-weight:500;font-size:11px;color:#993C1D;padding:7px 10px">GOVERNANCE → governance_details</td></tr>
+      <tr><td class="mono">board_appointment / board_resignation</td><td class="mono" rowspan="4" style="vertical-align:middle;color:var(--color-text-tertiary)">governance_details</td><td class="note">person_name <span class="req">req</span>, designation <span class="req">req</span>, change_type <span class="req">req</span>, effective_date, reason</td></tr>
+      <tr><td class="mono">auditor_appointment / auditor_resignation</td><td class="note">person_name <span class="req">req</span>, change_type <span class="req">req</span>, effective_date, reason</td></tr>
+      <tr><td class="mono">sebi_action / regulatory_notice</td><td class="note">regulator <span class="req">req</span>, action_type <span class="req">req</span>, penalty_amount, reason</td></tr>
+      <tr><td class="mono">agm / egm</td><td class="note">meeting_date <span class="req">req</span>, agenda_summary</td></tr>
+
+      <tr style="background:var(--color-background-secondary)"><td colspan="3" style="font-weight:500;font-size:11px;color:#993556;padding:7px 10px">CREDIT RATINGS → credit_rating_details</td></tr>
+      <tr><td class="mono">upgrade / downgrade / watch_positive / watch_negative / affirmed / withdrawn</td><td class="mono">credit_rating_details</td><td class="note">agency <span class="req">req</span>, instrument_type, instrument_name, rating_before, rating_after <span class="req">req</span>, outlook_before, outlook_after, rated_amount, rationale, rating_date</td></tr>
+
+      <tr style="background:var(--color-background-secondary)"><td colspan="3" style="font-weight:500;font-size:11px;color:#3B6D11;padding:7px 10px">FINANCIAL RESULTS → financial_result_details</td></tr>
+      <tr><td class="mono">quarterly_results / annual_results / provisional_numbers</td><td class="mono" rowspan="3" style="vertical-align:middle;color:var(--color-text-tertiary)">financial_result_details</td><td class="note">period_quarter <span class="req">req</span>, period_year <span class="req">req</span>, revenue, ebitda, ebitda_margin, pat, eps, beat_miss, key_highlight</td></tr>
+      <tr><td class="mono">guidance_upgrade / guidance_downgrade / guidance_maintained</td><td class="note">period_year <span class="req">req</span>, guidance_revenue, guidance_margin, key_highlight</td></tr>
+      <tr><td class="mono">restatement</td><td class="note">period_quarter, period_year <span class="req">req</span>, key_highlight <span class="req">req</span> (explain what changed)</td></tr>
+
+      <tr style="background:var(--color-background-secondary)"><td colspan="3" style="font-weight:500;font-size:11px;color:#5F5E5A;padding:7px 10px">FUNDRAISING → fundraising_details</td></tr>
+      <tr><td class="mono">qip / fpo / preferential_allotment</td><td class="mono" rowspan="4" style="vertical-align:middle;color:var(--color-text-tertiary)">fundraising_details</td><td class="note">issue_size <span class="req">req</span>, price_per_share, number_of_shares, allottee_name, allottee_category, purpose, open_date, close_date</td></tr>
+      <tr><td class="mono">ncd / bond</td><td class="note">issue_size <span class="req">req</span>, coupon_rate <span class="req">req</span>, maturity_date <span class="req">req</span>, tenure_years, purpose</td></tr>
+      <tr><td class="mono">ipo</td><td class="note">issue_size <span class="req">req</span>, price_per_share, open_date, close_date, subscription_times</td></tr>
+      <tr><td class="mono">debt_repayment / rights_issue / private_placement</td><td class="note">issue_size <span class="req">req</span>, purpose, allottee_name, allottee_category</td></tr>
+
+      <tr style="background:var(--color-background-secondary)"><td colspan="3" style="font-weight:500;font-size:11px;color:#A32D2D;padding:7px 10px">LEGAL → legal_details</td></tr>
+      <tr><td class="mono">court_order / arbitration</td><td class="mono" rowspan="4" style="vertical-align:middle;color:var(--color-text-tertiary)">legal_details</td><td class="note">forum <span class="req">req</span>, case_number, counterparty, outcome, order_date, description</td></tr>
+      <tr><td class="mono">tax_demand / penalty</td><td class="note">forum <span class="req">req</span>, demand_amount <span class="req">req</span>, penalty_amount, company_stance <span class="req">req</span>, contingent_liability</td></tr>
+      <tr><td class="mono">ibc_filing</td><td class="note">forum <span class="req">req</span>, counterparty <span class="req">req</span>, demand_amount, order_date, description</td></tr>
+      <tr><td class="mono">notice / settlement</td><td class="note">forum, counterparty, outcome <span class="req">req</span>, order_date, description</td></tr>
+    </tbody>
+  </table>
+</div>
+</div>
+
+<script>
+function show(id){
+  document.querySelectorAll('.panel').forEach(p=>p.className='panel');
+  document.querySelectorAll('.tab').forEach(t=>{t.className='tab'});
+  document.getElementById(id).className='panel active';
+  event.target.className='tab active';
+}
+</script>

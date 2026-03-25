@@ -15,5 +15,5 @@ class Stock(Base):
     symbol: Mapped[str] = mapped_column("trading_symbol", String(50), nullable=False)
     is_active: Mapped[bool | None] = mapped_column("is_active", Boolean, nullable=True)
 
-    events = relationship("Event", back_populates="stock", cascade="all, delete-orphan")
+    events = relationship("StoxEvent", back_populates="stock", cascade="all, delete-orphan")
 

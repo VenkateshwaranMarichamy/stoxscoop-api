@@ -7,14 +7,12 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import DBAPIError, OperationalError
-from starlette.types import ASGIApp
 
 from app.core.config import settings
 from app.core.errors import AppError
 from app.core.logging import configure_logging
-from app.routes.batches import router as batches_router
-from app.routes.events import router as events_router
 from app.routes.stocks import router as stocks_router
+from app.routes.v1 import router as v1_router
 
 
 configure_logging(settings.log_level)
@@ -37,7 +35,9 @@ def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
 
 @app.exception_handler(OperationalError)
 @app.exception_handler(DBAPIError)
-def db_error_handler(_: Request, __: Exception) -> JSONResponse:
+def db_error_handler(_: Request, exc: Exception) -> JSONResponse:
+    if settings.app_env == "local":
+        logger.exception("Database error (local env — full traceback): %s", exc)
     return JSONResponse(
         status_code=503,
         content={"error": {"code": "db_unavailable", "message": "Database unavailable. Please retry."}},
@@ -80,7 +80,6 @@ def validation_exception_handler(_: Request, exc: RequestValidationError) -> JSO
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
-app.include_router(batches_router)
-app.include_router(events_router)
 app.include_router(stocks_router)
+app.include_router(v1_router)
 
