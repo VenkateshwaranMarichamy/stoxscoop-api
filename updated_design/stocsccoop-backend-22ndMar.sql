@@ -260,6 +260,9 @@ CREATE TABLE stoxscoop.corporate_action_details (
     target_company      VARCHAR(255),           -- merger / demerger counterparty
     swap_ratio          VARCHAR(30),            -- share exchange ratio
     offer_price         NUMERIC(18,2),          -- open offer price per share
+    stake_acquired_pct  NUMERIC(5,2),           -- % stake acquired in the transaction
+    resulting_stake_pct NUMERIC(5,2),           -- % stake held after the transaction
+    shares_transacted   BIGINT,                 -- number of shares acquired / tendered
     description         TEXT
 );
 
