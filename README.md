@@ -12,6 +12,8 @@ Create `.env`:
 DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/stoxscoop
 APP_ENV=local
 LOG_LEVEL=INFO
+APP_PORT=8001
+CORS_ALLOWED_ORIGINS=["http://localhost:5173","http://localhost:5174"]
 ```
 
 ### 2) Install dependencies
@@ -37,7 +39,7 @@ python -m app.seed
 ### 5) Run API
 
 ```bash
-uvicorn app.main:app --reload
+python -m app.main
 ```
 
 Swagger docs are available at `/docs`.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,6 +11,9 @@ class Settings(BaseSettings):
 
     app_env: str = "local"
     log_level: str = "INFO"
+    app_host: str = "0.0.0.0"
+    app_port: int = 8001
+    cors_allowed_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173", "http://localhost:5174"])
 
     database_url: str
     # PostgreSQL schema for v1 event stack (batches, events, subtypes, detail tables).
@@ -17,4 +21,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-

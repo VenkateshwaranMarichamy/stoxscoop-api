@@ -5,6 +5,7 @@ import logging
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import DBAPIError, OperationalError
 
@@ -22,6 +23,14 @@ app = FastAPI(
     title="StoxScoop API",
     version="1.0.0",
     description="Backend for tracking stock market events and event batches.",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -83,3 +92,13 @@ def validation_exception_handler(_: Request, exc: RequestValidationError) -> JSO
 app.include_router(stocks_router)
 app.include_router(v1_router)
 
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "app.main:app",
+        host=settings.app_host,
+        port=settings.app_port,
+        reload=settings.app_env == "local",
+    )
