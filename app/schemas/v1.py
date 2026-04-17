@@ -147,6 +147,20 @@ class EventRead(APIModel):
     detail: dict[str, Any] | None = None
 
 
+class EventResultItem(APIModel):
+    index: int
+    status: str  # "created" | "failed"
+    id: int | None = None
+    error: str | None = None
+
+
+class BatchWithEventsPartialRead(APIModel):
+    batch: BatchRead
+    created: int
+    failed: int
+    results: list[EventResultItem]
+
+
 class BatchWithEventsRead(APIModel):
     batch: BatchRead
     events: list[EventRead]

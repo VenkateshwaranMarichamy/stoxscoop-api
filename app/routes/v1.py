@@ -11,6 +11,7 @@ from app.schemas.v1 import (
     BatchCreate,
     BatchRead,
     BatchWithEventsCreate,
+    BatchWithEventsPartialRead,
     BatchWithEventsRead,
     EventBatchCreate,
     EventCreate,
@@ -62,10 +63,9 @@ def complete_batch(batch_id: int, db: Session = Depends(get_db)) -> BatchRead:
     return service.complete_batch(db, batch_id)
 
 
-@router.post("/batches/with-events", response_model=BatchWithEventsRead, status_code=201)
-def create_batch_with_events(payload: BatchWithEventsCreate, db: Session = Depends(get_db)) -> BatchWithEventsRead:
-    batch, events = service.create_batch_with_events(db, payload)
-    return {"batch": batch, "events": events}
+@router.post("/batches/with-events", response_model=BatchWithEventsPartialRead, status_code=201)
+def create_batch_with_events(payload: BatchWithEventsCreate, db: Session = Depends(get_db)) -> BatchWithEventsPartialRead:
+    return service.create_batch_with_events(db, payload)
 
 
 @router.post("/events", response_model=EventRead, status_code=201)

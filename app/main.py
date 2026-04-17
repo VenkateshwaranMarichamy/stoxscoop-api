@@ -12,6 +12,7 @@ from sqlalchemy.exc import DBAPIError, OperationalError
 from app.core.config import settings
 from app.core.errors import AppError
 from app.core.logging import configure_logging
+from app.routes.market_updates import router as market_updates_router
 from app.routes.stocks import router as stocks_router
 from app.routes.v1 import router as v1_router
 
@@ -91,6 +92,7 @@ def validation_exception_handler(_: Request, exc: RequestValidationError) -> JSO
 
 app.include_router(stocks_router)
 app.include_router(v1_router)
+app.include_router(market_updates_router)
 
 
 if __name__ == "__main__":

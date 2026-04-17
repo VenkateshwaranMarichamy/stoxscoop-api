@@ -6,6 +6,8 @@ from typing import Any
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
+import logging
+
 from app.core.errors import BadRequestError, NotFoundError
 from app.models.v1 import (
     BusinessEventDetails,
@@ -24,7 +26,7 @@ from app.models.v1 import (
     StoxEvent,
     StoxEventBatch,
 )
-from app.schemas.v1 import BatchCreate, BatchWithEventsCreate, EventCreate, EventUpdate
+from app.schemas.v1 import BatchCreate, BatchWithEventsCreate, EventCreate, EventUpdate, BatchWithEventsPartialRead
 
 
 DETAIL_MODEL_BY_EVENT_TYPE = {
@@ -99,12 +101,18 @@ def _model_to_dict(model_obj: Any) -> dict[str, Any]:
     return data
 
 
+def _coerce_empty_strings(payload: dict[str, Any]) -> dict[str, Any]:
+    """Convert empty string values to None to avoid type errors on numeric/date DB columns."""
+    return {k: (None if v == "" else v) for k, v in payload.items()}
+
+
 def _upsert_detail(db: Session, event: StoxEvent, detail_payload: dict[str, Any] | None) -> None:
     if not detail_payload:
         return
     model = DETAIL_MODEL_BY_EVENT_TYPE[event.event_type.value]
     cols = {c.name for c in model.__table__.columns} - {"id", "event_id"}
     clean_payload = {k: v for k, v in detail_payload.items() if k in cols}
+    clean_payload = _coerce_empty_strings(clean_payload)
     clean_payload = _normalize_detail_payload_for_pg(model, clean_payload)
     existing = db.execute(select(model).where(model.event_id == event.id)).scalar_one_or_none()
     if existing is None:
@@ -229,12 +237,59 @@ def create_events_batch(db: Session, batch_id: int | None, payloads: list[EventC
     return created
 
 
-def create_batch_with_events(db: Session, payload: BatchWithEventsCreate) -> tuple[StoxEventBatch, list[dict[str, Any]]]:
+def _sanitize_error_message(exc: Exception) -> str:
+    """Remove SQL queries, table names, and stack traces from error messages."""
+    error_msg = exc.message if hasattr(exc, "message") else str(exc)
+    
+    # Remove SQL query blocks
+    if "SQL:" in error_msg or "[SQL:" in error_msg:
+        error_msg = error_msg.split("SQL:")[0].split("[SQL:")[0].strip()
+    
+    # Remove background error URLs
+    if "[Background on this error at:" in error_msg:
+        error_msg = error_msg.split("[Background")[0].strip()
+    
+    # Remove psycopg2 error prefixes with table names
+    if "(psycopg2.errors." in error_msg:
+        parts = error_msg.split("** ")
+        if len(parts) > 1:
+            error_msg = parts[1].strip()
+        else:
+            error_msg = error_msg.split(") ")[-1].strip()
+    
+    # Remove trailing parentheses and brackets
+    error_msg = error_msg.rstrip(")")
+    
+    return error_msg or "Validation failed"
+
+
+def create_batch_with_events(db: Session, payload: BatchWithEventsCreate) -> dict[str, Any]:
     if not payload.events:
         raise BadRequestError("events must not be empty")
     batch = create_batch(db, BatchCreate(batch_name=payload.batch_name, notes=payload.notes))
-    events = create_events_batch(db, batch.id, payload.events)
-    return batch, events
+
+    results: list[dict[str, Any]] = []
+    created_count = 0
+    failed_count = 0
+
+    for i, event_payload in enumerate(payload.events):
+        try:
+            event_payload_with_batch = event_payload.model_copy(update={"batch_id": batch.id})
+            event = create_event(db, event_payload_with_batch)
+            results.append({"index": i, "status": "created", "id": event["id"], "error": None})
+            created_count += 1
+        except Exception as exc:
+            failed_count += 1
+            error_msg = _sanitize_error_message(exc)
+            logging.getLogger("app").debug("Batch event index %d failed: %s", i, error_msg)
+            results.append({"index": i, "status": "failed", "id": None, "error": error_msg})
+
+    return {
+        "batch": batch,
+        "created": created_count,
+        "failed": failed_count,
+        "results": results,
+    }
 
 
 def list_events(

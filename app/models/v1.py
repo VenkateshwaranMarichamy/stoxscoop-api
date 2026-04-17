@@ -276,6 +276,12 @@ class BusinessEventDetails(Base):
     ownership_pct: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
     is_repeat_order: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    campaign_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    target_revenue: Mapped[float | None] = mapped_column(Numeric(18, 2), nullable=True)
+    target_timeline: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    product_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    target_geography: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    target_segment: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class GovernanceDetails(Base):
