@@ -15,3 +15,8 @@ class StockRead(APIModel):
     name: str
     symbol: str
 
+
+class StockWithAliasesRead(APIModel):
+    id: int
+    names: list[str]  # first entry is the canonical name, rest are aliases
+
