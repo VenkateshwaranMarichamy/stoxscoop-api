@@ -229,6 +229,7 @@ class DisclosureDetails(Base):
     stake_after: Mapped[float | None] = mapped_column(Numeric(8, 4), nullable=True)
     transaction_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     exchange: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class InsiderDetails(Base):
@@ -252,6 +253,7 @@ class InsiderDetails(Base):
     pledge_percentage: Mapped[float | None] = mapped_column(Numeric(8, 4), nullable=True)
     sebi_disclosure_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     transaction_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class BusinessEventDetails(Base):
@@ -303,6 +305,7 @@ class GovernanceDetails(Base):
     currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
     meeting_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     agenda_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class StoxCreditRatingDetails(Base):
@@ -326,6 +329,7 @@ class StoxCreditRatingDetails(Base):
     currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
     rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
     rating_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class FinancialResultDetails(Base):
@@ -350,6 +354,7 @@ class FinancialResultDetails(Base):
     guidance_margin: Mapped[str | None] = mapped_column(String(100), nullable=True)
     currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
     key_highlight: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class FundraisingDetails(Base):
@@ -373,6 +378,7 @@ class FundraisingDetails(Base):
     open_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     close_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     subscription_times: Mapped[float | None] = mapped_column(Numeric(8, 2), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class LegalDetails(Base):
